@@ -1,0 +1,55 @@
+name: Actualizar hora europea
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generar hora de Europa
+        run: |
+          node <<'EOF'
+          const fs = require('fs');
+
+          const parts = new Intl.DateTimeFormat('en', {
+            timeZone: 'Europe/Madrid',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hourCycle: 'h23'
+          }).formatToParts(new Date());
+
+          const values = {};
+          for (const part of parts) {
+            if (part.type !== 'literal') values[part.type] = part.value;
+          }
+
+          fs.writeFileSync('hora-europa.json', JSON.stringify({
+            year: Number(values.year),
+            month: Number(values.month),
+            day: Number(values.day),
+            hour: Number(values.hour),
+            minute: Number(values.minute),
+            seconds: Number(values.second)
+          }, null, 2) + '\n');
+          EOF
+
+      - name: Guardar cambios
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add hora-europa.json
+          git diff --cached --quiet || git commit -m "Actualizar hora europea"
+          git push
